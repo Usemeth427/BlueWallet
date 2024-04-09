@@ -13,14 +13,14 @@ import loc from '../../loc';
 
 const ENTROPY_LIMIT = 256;
 
-const enum ActionType {
-  push = 'PUSH',
-  pop = 'POP',
+export enum EActionType {
+  push = 'push',
+  pop = 'pop',
 }
 
 type TEntropy = { value: number; bits: number };
 type TState = { entropy: BN; bits: number; items: number[] };
-type TAction = ({ type: ActionType.push } & TEntropy) | { type: ActionType.pop } | null;
+type TAction = ({ type: EActionType.push } & TEntropy) | { type: EActionType.pop } | null;
 type TPush = (v: TEntropy | null) => void;
 type TPop = () => void;
 
@@ -37,7 +37,7 @@ export const eReducer = (state: TState = initialState, action: TAction) => {
   if (action === null) return state;
 
   switch (action.type) {
-    case ActionType.push: {
+    case EActionType.push: {
       let value: number | BN = action.value;
       let bits: number = action.bits;
 
@@ -53,7 +53,7 @@ export const eReducer = (state: TState = initialState, action: TAction) => {
       const items = [...state.items, bits];
       return { entropy, bits: state.bits + bits, items };
     }
-    case ActionType.pop: {
+    case EActionType.pop: {
       if (state.bits === 0) return state;
       const bits = state.items.pop()!;
       const entropy = shiftRight(state.entropy, bits);
@@ -245,8 +245,8 @@ const Entropy = () => {
     },
   });
 
-  const push: TPush = v => v && dispatch({ type: ActionType.push, value: v.value, bits: v.bits });
-  const pop: TPop = () => dispatch({ type: ActionType.pop });
+  const push: TPush = v => v && dispatch({ type: EActionType.push, value: v.value, bits: v.bits });
+  const pop: TPop = () => dispatch({ type: EActionType.pop });
   const save = () => {
     // @ts-ignore: navigation is not typed yet
     navigation.pop();
