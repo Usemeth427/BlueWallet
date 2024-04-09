@@ -124,6 +124,7 @@ const bStyles = StyleSheet.create({
 interface FButtonProps {
   text: string;
   icon: ReactNode;
+  onPress: () => void;
   width?: number;
   first?: boolean;
   last?: boolean;

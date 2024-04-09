@@ -1,27 +1,46 @@
-import React, { useReducer, useState } from 'react';
-import PropTypes from 'prop-types';
-import BN from 'bignumber.js';
-import { Dimensions, PixelRatio, View, ScrollView, Text, Image, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
-import { Icon } from 'react-native-elements';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import BN from 'bignumber.js';
+import React, { useReducer, useState } from 'react';
+import { Dimensions, Image, PixelRatio, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Icon } from 'react-native-elements';
 
-import loc from '../../loc';
-import { BlueCurrentTheme, useTheme } from '../../components/themes';
-import { FContainer, FButton } from '../../components/FloatButtons';
 import { BlueSpacing20, BlueTabs } from '../../BlueComponents';
-import navigationStyle from '../../components/navigationStyle';
+import { FButton, FContainer } from '../../components/FloatButtons';
 import SafeArea from '../../components/SafeArea';
+import navigationStyle from '../../components/navigationStyle';
+import { BlueCurrentTheme, useTheme } from '../../components/themes';
+import loc from '../../loc';
 
 const ENTROPY_LIMIT = 256;
 
-const shiftLeft = (value, places) => value.multipliedBy(2 ** places);
-const shiftRight = (value, places) => value.div(2 ** places).dp(0, BN.ROUND_DOWN);
+const enum ActionType {
+  push = 'PUSH',
+  pop = 'POP',
+}
 
-const initialState = { entropy: BN(0), bits: 0, items: [] };
-export const eReducer = (state = initialState, action) => {
+type TEntropy = { value: number; bits: number };
+type TState = { entropy: BN; bits: number; items: number[] };
+type TAction = ({ type: ActionType.push } & TEntropy) | { type: ActionType.pop } | null;
+type TPush = (v: TEntropy | null) => void;
+type TPop = () => void;
+
+const initialState: TState = {
+  entropy: BN(0),
+  bits: 0,
+  items: [],
+};
+
+const shiftLeft = (value: BN, places: number) => value.multipliedBy(2 ** places);
+const shiftRight = (value: BN, places: number) => value.div(2 ** places).dp(0, BN.ROUND_DOWN);
+
+export const eReducer = (state: TState = initialState, action: TAction) => {
+  if (action === null) return state;
+
   switch (action.type) {
-    case 'push': {
-      let { value, bits } = action;
+    case ActionType.push: {
+      let value: number | BN = action.value;
+      let bits: number = action.bits;
+
       if (value >= 2 ** bits) {
         throw new TypeError("Can't push value exceeding size in bits");
       }
@@ -34,9 +53,9 @@ export const eReducer = (state = initialState, action) => {
       const items = [...state.items, bits];
       return { entropy, bits: state.bits + bits, items };
     }
-    case 'pop': {
+    case ActionType.pop: {
       if (state.bits === 0) return state;
-      const bits = state.items.pop();
+      const bits = state.items.pop()!;
       const entropy = shiftRight(state.entropy, bits);
       return { entropy, bits: state.bits - bits, items: [...state.items] };
     }
@@ -45,14 +64,14 @@ export const eReducer = (state = initialState, action) => {
   }
 };
 
-export const entropyToHex = ({ entropy, bits }) => {
+export const entropyToHex = ({ entropy, bits }: { entropy: BN; bits: number }): string => {
   if (bits === 0) return '0x';
   const hex = entropy.toString(16);
   const hexSize = Math.floor((bits - 1) / 4) + 1;
   return '0x' + '0'.repeat(hexSize - hex.length) + hex;
 };
 
-export const getEntropy = (number, base) => {
+export const getEntropy = (number: number, base: number): TEntropy | null => {
   if (base === 1) return null;
   let maxPow = 1;
   while (2 ** (maxPow + 1) <= base) {
@@ -77,12 +96,12 @@ export const getEntropy = (number, base) => {
 };
 
 // cut entropy to bytes, convert to Buffer
-export const convertToBuffer = ({ entropy, bits }) => {
+export const convertToBuffer = ({ entropy, bits }: { entropy: BN; bits: number }): Buffer => {
   if (bits < 8) return Buffer.from([]);
   const bytes = Math.floor(bits / 8);
 
   // convert to byte array
-  let arr = [];
+  const arr: string[] = [];
   const ent = entropy.toString(16).split('').reverse();
   ent.forEach((v, index) => {
     if (index % 2 === 1) {
@@ -91,18 +110,19 @@ export const convertToBuffer = ({ entropy, bits }) => {
       arr.unshift(v);
     }
   });
-  arr = arr.map(i => parseInt(i, 16));
+
+  let arr2 = arr.map(i => parseInt(i, 16));
 
   if (arr.length > bytes) {
-    arr.shift();
-  } else if (arr.length < bytes) {
-    const zeros = [...Array(bytes - arr.length)].map(() => 0);
-    arr = [...zeros, ...arr];
+    arr2.shift();
+  } else if (arr2.length < bytes) {
+    const zeros = [...Array(bytes - arr2.length)].map(() => 0);
+    arr2 = [...zeros, ...arr2];
   }
-  return Buffer.from(arr);
+  return Buffer.from(arr2);
 };
 
-const Coin = ({ push }) => (
+const Coin = ({ push }: { push: TPush }) => (
   <View style={styles.coinRoot}>
     <TouchableOpacity accessibilityRole="button" onPress={() => push(getEntropy(0, 2))} style={styles.coinBody}>
       <Image style={styles.coinImage} source={require('../../img/coin1.png')} />
@@ -113,11 +133,24 @@ const Coin = ({ push }) => (
   </View>
 );
 
-Coin.propTypes = {
-  push: PropTypes.func.isRequired,
+const diceIcon = (i: number): string => {
+  switch (i) {
+    case 1:
+      return 'dice-one';
+    case 2:
+      return 'dice-two';
+    case 3:
+      return 'dice-three';
+    case 4:
+      return 'dice-four';
+    case 5:
+      return 'dice-five';
+    default:
+      return 'dice-six';
+  }
 };
 
-const Dice = ({ push, sides }) => {
+const Dice = ({ push, sides }: { push: TPush; sides: number }) => {
   const { width } = useWindowDimensions();
   const { colors } = useTheme();
   const diceWidth = width / 4;
@@ -132,22 +165,6 @@ const Dice = ({ push, sides }) => {
       backgroundColor: colors.elevated,
     },
   });
-  const diceIcon = i => {
-    switch (i) {
-      case 1:
-        return 'dice-one';
-      case 2:
-        return 'dice-two';
-      case 3:
-        return 'dice-three';
-      case 4:
-        return 'dice-four';
-      case 5:
-        return 'dice-five';
-      default:
-        return 'dice-six';
-    }
-  };
 
   return (
     <ScrollView contentContainerStyle={[styles.diceContainer, stylesHook.diceContainer]}>
@@ -168,17 +185,12 @@ const Dice = ({ push, sides }) => {
   );
 };
 
-Dice.propTypes = {
-  sides: PropTypes.number.isRequired,
-  push: PropTypes.func.isRequired,
-};
-
 const buttonFontSize =
   PixelRatio.roundToNearestPixel(Dimensions.get('window').width / 26) > 22
     ? 22
     : PixelRatio.roundToNearestPixel(Dimensions.get('window').width / 26);
 
-const Buttons = ({ pop, save, colors }) => (
+const Buttons = ({ pop, save, colors }: { pop: TPop; save: () => void; colors: any }) => (
   <FContainer>
     <FButton
       onPress={pop}
@@ -201,14 +213,24 @@ const Buttons = ({ pop, save, colors }) => (
   </FContainer>
 );
 
-Buttons.propTypes = {
-  pop: PropTypes.func.isRequired,
-  save: PropTypes.func.isRequired,
-  colors: PropTypes.shape.isRequired,
+const TollTab = ({ active }: { active: boolean }) => {
+  const { colors } = useTheme();
+  return <Icon name="toll" type="material" color={active ? colors.buttonAlternativeTextColor : colors.buttonBackgroundColor} />;
+};
+
+const D6Tab = ({ active }: { active: boolean }) => {
+  const { colors } = useTheme();
+  return <Icon name="dice" type="font-awesome-5" color={active ? colors.buttonAlternativeTextColor : colors.buttonBackgroundColor} />;
+};
+
+const D20Tab = ({ active }: { active: boolean }) => {
+  const { colors } = useTheme();
+  return <Icon name="dice-d20" type="font-awesome-5" color={active ? colors.buttonAlternativeTextColor : colors.buttonBackgroundColor} />;
 };
 
 const Entropy = () => {
   const [entropy, dispatch] = useReducer(eReducer, initialState);
+  // @ts-ignore: navigation is not typed yet
   const { onGenerated } = useRoute().params;
   const navigation = useNavigation();
   const [tab, setTab] = useState(1);
@@ -223,9 +245,10 @@ const Entropy = () => {
     },
   });
 
-  const push = v => v && dispatch({ type: 'push', value: v.value, bits: v.bits });
-  const pop = () => dispatch({ type: 'pop' });
+  const push: TPush = v => v && dispatch({ type: ActionType.push, value: v.value, bits: v.bits });
+  const pop: TPop = () => dispatch({ type: ActionType.pop });
   const save = () => {
+    // @ts-ignore: navigation is not typed yet
     navigation.pop();
     const buf = convertToBuffer(entropy);
     onGenerated(buf);
@@ -244,24 +267,7 @@ const Entropy = () => {
         </View>
       </TouchableOpacity>
 
-      <BlueTabs
-        active={tab}
-        onSwitch={setTab}
-        tabs={[
-          // eslint-disable-next-line react/no-unstable-nested-components
-          ({ active }) => (
-            <Icon name="toll" type="material" color={active ? colors.buttonAlternativeTextColor : colors.buttonBackgroundColor} />
-          ),
-          // eslint-disable-next-line react/no-unstable-nested-components
-          ({ active }) => (
-            <Icon name="dice" type="font-awesome-5" color={active ? colors.buttonAlternativeTextColor : colors.buttonBackgroundColor} />
-          ),
-          // eslint-disable-next-line react/no-unstable-nested-components
-          ({ active }) => (
-            <Icon name="dice-d20" type="font-awesome-5" color={active ? colors.buttonAlternativeTextColor : colors.buttonBackgroundColor} />
-          ),
-        ]}
-      />
+      <BlueTabs active={tab} onSwitch={setTab} tabs={[TollTab, D6Tab, D20Tab]} />
 
       {tab === 0 && <Coin push={push} />}
       {tab === 1 && <Dice sides={6} push={push} />}
