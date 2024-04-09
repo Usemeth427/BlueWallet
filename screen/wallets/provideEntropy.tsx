@@ -245,7 +245,9 @@ const Entropy = () => {
     },
   });
 
-  const push: TPush = v => v && dispatch({ type: EActionType.push, value: v.value, bits: v.bits });
+  const push: TPush = v => {
+    dispatch(v === null ? null : { type: EActionType.push, value: v.value, bits: v.bits });
+  };
   const pop: TPop = () => dispatch({ type: EActionType.pop });
   const save = () => {
     // @ts-ignore: navigation is not typed yet
