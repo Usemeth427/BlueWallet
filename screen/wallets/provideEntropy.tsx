@@ -1,6 +1,6 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import BN from 'bignumber.js';
-import React, { useReducer, useState } from 'react';
+import React, { useEffect, useReducer, useState } from 'react';
 import { Dimensions, Image, PixelRatio, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Icon } from 'react-native-elements';
 
@@ -11,16 +11,15 @@ import navigationStyle from '../../components/navigationStyle';
 import { BlueCurrentTheme, useTheme } from '../../components/themes';
 import loc from '../../loc';
 
-const ENTROPY_LIMIT = 256;
-
 export enum EActionType {
   push = 'push',
   pop = 'pop',
+  limit = 'limit',
 }
 
 type TEntropy = { value: number; bits: number };
-type TState = { entropy: BN; bits: number; items: number[] };
-type TAction = ({ type: EActionType.push } & TEntropy) | { type: EActionType.pop } | null;
+type TState = { entropy: BN; bits: number; items: number[]; limit: number };
+type TAction = ({ type: EActionType.push } & TEntropy) | { type: EActionType.pop } | { type: EActionType.limit; limit: number } | null;
 type TPush = (v: TEntropy | null) => void;
 type TPop = () => void;
 
@@ -28,12 +27,13 @@ const initialState: TState = {
   entropy: BN(0),
   bits: 0,
   items: [],
+  limit: 256,
 };
 
 const shiftLeft = (value: BN, places: number) => value.multipliedBy(2 ** places);
 const shiftRight = (value: BN, places: number) => value.div(2 ** places).dp(0, BN.ROUND_DOWN);
 
-export const eReducer = (state: TState = initialState, action: TAction) => {
+export const eReducer = (state: TState = initialState, action: TAction): TState => {
   if (action === null) return state;
 
   switch (action.type) {
@@ -44,20 +44,23 @@ export const eReducer = (state: TState = initialState, action: TAction) => {
       if (value >= 2 ** bits) {
         throw new TypeError("Can't push value exceeding size in bits");
       }
-      if (state.bits === ENTROPY_LIMIT) return state;
-      if (state.bits + bits > ENTROPY_LIMIT) {
-        value = shiftRight(BN(value), bits + state.bits - ENTROPY_LIMIT);
-        bits = ENTROPY_LIMIT - state.bits;
+      if (state.bits === state.limit) return state;
+      if (state.bits + bits > state.limit) {
+        value = shiftRight(BN(value), bits + state.bits - state.limit);
+        bits = state.limit - state.bits;
       }
       const entropy = shiftLeft(state.entropy, bits).plus(value);
       const items = [...state.items, bits];
-      return { entropy, bits: state.bits + bits, items };
+      return { ...state, entropy, bits: state.bits + bits, items };
     }
     case EActionType.pop: {
       if (state.bits === 0) return state;
       const bits = state.items.pop()!;
       const entropy = shiftRight(state.entropy, bits);
-      return { entropy, bits: state.bits - bits, items: [...state.items] };
+      return { ...state, entropy, bits: state.bits - bits, items: [...state.items] };
+    }
+    case EActionType.limit: {
+      return { ...state, limit: action.limit };
     }
     default:
       return state;
@@ -231,7 +234,7 @@ const D20Tab = ({ active }: { active: boolean }) => {
 const Entropy = () => {
   const [entropy, dispatch] = useReducer(eReducer, initialState);
   // @ts-ignore: navigation is not typed yet
-  const { onGenerated } = useRoute().params;
+  const { onGenerated, words } = useRoute().params;
   const navigation = useNavigation();
   const [tab, setTab] = useState(1);
   const [show, setShow] = useState(false);
@@ -246,7 +249,7 @@ const Entropy = () => {
   });
 
   const push: TPush = v => {
-    dispatch(v === null ? null : { type: EActionType.push, value: v.value, bits: v.bits });
+    v !== null && dispatch({ type: EActionType.push, value: v.value, bits: v.bits });
   };
   const pop: TPop = () => dispatch({ type: EActionType.pop });
   const save = () => {
@@ -255,6 +258,10 @@ const Entropy = () => {
     const buf = convertToBuffer(entropy);
     onGenerated(buf);
   };
+
+  useEffect(() => {
+    dispatch({ type: EActionType.limit, limit: words === 24 ? 256 : 128 });
+  }, [dispatch, words]);
 
   const hex = entropyToHex(entropy);
   let bits = entropy.bits.toString();
@@ -265,7 +272,9 @@ const Entropy = () => {
       <BlueSpacing20 />
       <TouchableOpacity accessibilityRole="button" onPress={() => setShow(!show)}>
         <View style={[styles.entropy, stylesHook.entropy]}>
-          <Text style={[styles.entropyText, stylesHook.entropyText]}>{show ? hex : `${bits} of 256 bits`}</Text>
+          <Text style={[styles.entropyText, stylesHook.entropyText]}>
+            {show ? hex : loc.formatString(loc.entropy.amountOfEntropy, { bits, limit: entropy.limit })}
+          </Text>
         </View>
       </TouchableOpacity>
 

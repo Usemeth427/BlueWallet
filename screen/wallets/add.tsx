@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import React, { useContext, useEffect, useReducer } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   LayoutAnimation,
@@ -236,7 +237,6 @@ const WalletsAdd: React.FC = () => {
       if (selectedWalletType === ButtonSelected.ONCHAIN) {
         if (entropy) {
           try {
-            // @ts-ignore: Return later to update
             await w.generateFromEntropy(entropy);
           } catch (e: any) {
             console.log(e.toString());
@@ -334,8 +334,34 @@ const WalletsAdd: React.FC = () => {
   };
 
   const navigateToEntropy = () => {
-    // @ts-ignore: Return later to update
-    navigate('ProvideEntropy', { onGenerated: entropyGenerated });
+    Alert.alert(
+      '1111111',
+      '2222222',
+      [
+        {
+          text: loc._.cancel,
+          onPress: () => {},
+          style: 'default',
+        },
+        {
+          text: '12 words',
+          onPress: () => {
+            // @ts-ignore: Return later to update
+            navigate('ProvideEntropy', { onGenerated: entropyGenerated, words: 12 });
+          },
+          style: 'default',
+        },
+        {
+          text: '24 words',
+          onPress: () => {
+            // @ts-ignore: Return later to update
+            navigate('ProvideEntropy', { onGenerated: entropyGenerated, words: 24 });
+          },
+          style: 'default',
+        },
+      ],
+      { cancelable: true },
+    );
   };
 
   const navigateToImportWallet = () => {

@@ -43,7 +43,8 @@
   "entropy": {
     "save": "Save",
     "title": "Entropy",
-    "undo": "Undo"
+    "undo": "Undo",
+    "amountOfEntropy": "{bits} of {limit} bits"
   },
   "errors": {
     "broadcast": "Broadcast failed.",
