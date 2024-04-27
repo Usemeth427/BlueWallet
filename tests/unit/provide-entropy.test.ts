@@ -4,7 +4,7 @@ import { eReducer, entropyToHex, getEntropy, convertToBuffer, EActionType } from
 
 describe('Entropy reducer and format', () => {
   it('handles push and pop correctly', () => {
-    let state = eReducer(undefined, null);
+    let state = eReducer(undefined, { type: EActionType.noop });
     assert.equal(entropyToHex(state), '0x');
 
     state = eReducer(state, { type: EActionType.push, value: 0, bits: 1 });
@@ -42,7 +42,7 @@ describe('Entropy reducer and format', () => {
   });
 
   it('handles 256 bits correctly', () => {
-    let state = eReducer(undefined, null); // get init state
+    let state = eReducer(undefined, { type: EActionType.noop }); // get init state
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const i of [...Array(256)]) {
@@ -104,7 +104,7 @@ describe('getEntropy function', () => {
 
 describe('convertToBuffer function', () => {
   it('zero bits', () => {
-    const state = eReducer(undefined, null);
+    const state = eReducer(undefined, { type: EActionType.noop });
     assert.deepEqual(convertToBuffer(state), Buffer.from([]));
   });
 
@@ -141,7 +141,7 @@ describe('convertToBuffer function', () => {
   });
 
   it('256 bits or 32bytes', () => {
-    let state = eReducer(undefined, null); // get init state
+    let state = eReducer(undefined, { type: EActionType.noop }); // get init state
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     for (const i of [...Array(256)]) {

@@ -15,11 +15,16 @@ export enum EActionType {
   push = 'push',
   pop = 'pop',
   limit = 'limit',
+  noop = 'noop',
 }
 
 type TEntropy = { value: number; bits: number };
 type TState = { entropy: BN; bits: number; items: number[]; limit: number };
-type TAction = ({ type: EActionType.push } & TEntropy) | { type: EActionType.pop } | { type: EActionType.limit; limit: number } | null;
+type TAction =
+  | ({ type: EActionType.push } & TEntropy)
+  | { type: EActionType.pop }
+  | { type: EActionType.limit; limit: number }
+  | { type: EActionType.noop };
 type TPush = (v: TEntropy | null) => void;
 type TPop = () => void;
 
@@ -34,9 +39,9 @@ const shiftLeft = (value: BN, places: number) => value.multipliedBy(2 ** places)
 const shiftRight = (value: BN, places: number) => value.div(2 ** places).dp(0, BN.ROUND_DOWN);
 
 export const eReducer = (state: TState = initialState, action: TAction): TState => {
-  if (action === null) return state;
-
   switch (action.type) {
+    case EActionType.noop:
+      return state;
     case EActionType.push: {
       let value: number | BN = action.value;
       let bits: number = action.bits;
@@ -249,7 +254,11 @@ const Entropy = () => {
   });
 
   const push: TPush = v => {
-    v !== null && dispatch({ type: EActionType.push, value: v.value, bits: v.bits });
+    if (v === null) {
+      dispatch({ type: EActionType.noop });
+    } else {
+      dispatch({ type: EActionType.push, value: v.value, bits: v.bits });
+    }
   };
   const pop: TPop = () => dispatch({ type: EActionType.pop });
   const save = () => {

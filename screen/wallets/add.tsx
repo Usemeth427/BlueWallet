@@ -54,7 +54,7 @@ interface State {
   label: string;
   selectedWalletType: ButtonSelected;
   backdoorPressed: number;
-  entropy: string | any[] | undefined;
+  entropy: Buffer | undefined;
   entropyButtonText: string;
 }
 
@@ -162,7 +162,7 @@ const WalletsAdd: React.FC = () => {
     });
   }, [colorScheme, setOptions]);
 
-  const entropyGenerated = (newEntropy: string | any[]) => {
+  const entropyGenerated = (newEntropy: Buffer) => {
     let entropyTitle;
     if (!newEntropy) {
       entropyTitle = loc.wallets.add_entropy_provide;
@@ -204,7 +204,7 @@ const WalletsAdd: React.FC = () => {
     dispatch({ type: 'INCREMENT_BACKDOOR_PRESSED', payload: value });
   };
 
-  const setEntropy = (value: string | any[]) => {
+  const setEntropy = (value: Buffer) => {
     dispatch({ type: 'SET_ENTROPY', payload: value });
   };
 

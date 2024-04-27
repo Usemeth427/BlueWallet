@@ -52,6 +52,7 @@ async function getPreferredCurrency(): Promise<FiatUnitType> {
 }
 
 async function _restoreSavedExchangeRatesFromStorage(): Promise<void> {
+  console.info('_restoreSavedExchangeRatesFromStorage')
   try {
     const rates = await AsyncStorage.getItem(EXCHANGE_RATES_STORAGE_KEY);
     exchangeRates = rates ? JSON.parse(rates) : { LAST_UPDATED_ERROR: false };
@@ -114,6 +115,7 @@ async function isRateOutdated(): Promise<boolean> {
 }
 
 async function initCurrencyDaemon(clearLastUpdatedTime: boolean = false): Promise<void> {
+  console.info('initCurrencyDaemon')
   await _restoreSavedExchangeRatesFromStorage();
   await _restoreSavedPreferredFiatCurrencyFromStorage();
 
@@ -129,8 +131,12 @@ function satoshiToLocalCurrency(satoshi: number, format: boolean = true): string
   const exchangeRateKey = BTC_PREFIX + preferredFiatCurrency.endPointKey;
   const exchangeRate = exchangeRates[exchangeRateKey];
 
+  console.info('exchangeRates', exchangeRates)
+  console.info('exchangeRate', exchangeRate)
+
   if (typeof exchangeRate !== 'number') {
     updateExchangeRate();
+    console.info('...............................')
     return '...';
   }
 
