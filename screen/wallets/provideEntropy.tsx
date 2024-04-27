@@ -253,24 +253,28 @@ const Entropy = () => {
     },
   });
 
-  const push: TPush = v => {
+  useEffect(() => {
+    dispatch({ type: EActionType.limit, limit: words === 24 ? 256 : 128 });
+  }, [dispatch, words]);
+
+  const handlePush: TPush = v => {
     if (v === null) {
       dispatch({ type: EActionType.noop });
     } else {
       dispatch({ type: EActionType.push, value: v.value, bits: v.bits });
     }
   };
-  const pop: TPop = () => dispatch({ type: EActionType.pop });
-  const save = () => {
+
+  const handlePop: TPop = () => {
+    dispatch({ type: EActionType.pop });
+  };
+
+  const handleSave = async () => {
     // @ts-ignore: navigation is not typed yet
     navigation.pop();
     const buf = convertToBuffer(entropy);
     onGenerated(buf);
   };
-
-  useEffect(() => {
-    dispatch({ type: EActionType.limit, limit: words === 24 ? 256 : 128 });
-  }, [dispatch, words]);
 
   const hex = entropyToHex(entropy);
   let bits = entropy.bits.toString();
@@ -289,11 +293,11 @@ const Entropy = () => {
 
       <BlueTabs active={tab} onSwitch={setTab} tabs={[TollTab, D6Tab, D20Tab]} />
 
-      {tab === 0 && <Coin push={push} />}
-      {tab === 1 && <Dice sides={6} push={push} />}
-      {tab === 2 && <Dice sides={20} push={push} />}
+      {tab === 0 && <Coin push={handlePush} />}
+      {tab === 1 && <Dice sides={6} push={handlePush} />}
+      {tab === 2 && <Dice sides={20} push={handlePush} />}
 
-      <Buttons pop={pop} save={save} colors={colors} />
+      <Buttons pop={handlePop} save={handleSave} colors={colors} />
     </SafeArea>
   );
 };
